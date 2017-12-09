@@ -101,7 +101,7 @@ func start(ctx context.Context) {
 		cdp.Navigate(`http://www.userbenchmark.com/page/login`),
 		cdp.SetValue(`input[name="username"]`, "CipherX"),
 		cdp.Sleep(time.Second*1),
-		cdp.SetValue(`input[name="password"]`, "CipherXTest"),
+		cdp.SetValue(`input[name="password"]`, "SomePlaceholderPassword"),
 		cdp.Sleep(time.Second*1),
 		cdp.Click(`button[name="submit"]`),
 		cdp.Sleep(time.Second*2),
