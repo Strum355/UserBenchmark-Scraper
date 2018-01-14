@@ -15,102 +15,48 @@ import (
 
 	"github.com/fatih/color"
 
-	cdp "github.com/knq/chromedp"
-	"github.com/knq/chromedp/runner"
+	cdp "github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/runner"
 )
 
-type standard struct {
-	URL       string  `json:"url"`
-	PartNum   string  `json:"part"`
-	Brand     string  `json:"brand"`
-	Rank      int     `json:"rank"`
-	Benchmark float32 `json:"benchmark"`
-	Samples   int     `json:"samples"`
-	Model     string  `json:"model"`
-}
-
-type cpu struct {
-	Cores       string    `json:"cores"`
-	Scores      [3]string `json:"scores"`
-	SegmentPerf [3]string `json:"performance"`
-	SubResults  [9]string `json:"subresults"`
-	standard
-}
-
-type cpuOut struct {
-	Cores       string    `json:"cores"`
-	Scores      [3]string `json:"scores"`
-	SegmentPerf [3]string `json:"performance"`
-	SubResults  [9]string `json:"subresults"`
-	standard
-}
-
-type gpu struct {
-	//lighting, reflection, parallax
-	//mrender, gravity, splatting
-	Name       string
-	SubResults [6]string
-	Averages   [2]string
-}
-
-type ssd struct {
-	Name, Controller string
-	SubResults       [9]string
-	Averages         [3]string
-	standard
-}
-
-var ssds []ssd
-
-var gpus []gpu
-
-var cpus = make(map[string]cpuOut)
-
-var c *cdp.CDP
+var (
+	conf = new(config)
+)
 
 func main() {
-	scrape()
-}
+	conf.loadConfig()
 
-func scrape() {
-	// create context
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var err error
-	// create chrome instance
-	c, err = cdp.New(ctxt, cdp.WithRunnerOptions(
-		runner.Headless("/usr/bin/google-chrome-stable", 9222),
+	c, err := cdp.New(ctxt, cdp.WithRunnerOptions(
+		runner.HeadlessPathPort("/usr/bin/google-chrome-stable", 9222),
 		runner.Flag("headless", true),
 	))
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 
-	start(ctxt)
+	start(ctxt, c)
 
-	// shutdown chrome
-	err = c.Shutdown(ctxt)
-	if err != nil {
+	if err := c.Shutdown(ctxt); err != nil {
 		fmt.Println(err)
 	}
 }
 
-func start(ctx context.Context) {
+/* 
+		cdp.OuterHTML(`html`, &html, cdp.ByQuery),
+*/
+
+func start(ctx context.Context, c *cdp.CDP) {
 	fmt.Println("STARTING")
-	if err := c.Run(ctx, cdp.Tasks{
-		cdp.Navigate(`http://www.userbenchmark.com/page/login`),
-		cdp.SetValue(`input[name="username"]`, "CipherX"),
-		cdp.Sleep(time.Second * 1),
-		cdp.SetValue(`input[name="password"]`, "SomePlaceholderPassword"),
-		cdp.Sleep(time.Second * 1),
-		cdp.Click(`button[name="submit"]`),
-		cdp.Sleep(time.Second * 2),
-	}); err != nil {
-		fmt.Println(err)
+	if err := login(ctx, c); err != nil {
+		fmt.Println("Couldnt login", err)
+		return
 	}
 
-	doCPU(ctx)
+	//doCPU(ctx)
 
 	/* 	time.Sleep(time.Minute*30)
 
@@ -149,7 +95,19 @@ func start(ctx context.Context) {
 	   	}*/
 }
 
-func doCPU(ctx context.Context) {
+func login(ctx context.Context, c *cdp.CDP) error {
+	return c.Run(ctx, cdp.Tasks{
+		cdp.Navigate(`http://www.userbenchmark.com/page/login`),
+		cdp.SetValue(`input[name="username"]`, conf.User),
+		cdp.Sleep(time.Second * 1),
+		cdp.SetValue(`input[name="password"]`, conf.Pass),
+		cdp.Sleep(time.Second * 1),
+		cdp.Click(`button[name="submit"]`),
+		cdp.Sleep(time.Second * 2),
+	})
+}
+
+func doCPU(ctx context.Context, c *cdp.CDP) {
 	bytes, err := ioutil.ReadFile("./CPU_DATA_MAP.json")
 	if err != nil {
 		log.Fatalln(err)
@@ -163,7 +121,7 @@ func doCPU(ctx context.Context) {
 
 Outer:
 	for _, val := range parseCSV("CPU_UserBenchmarks.csv") {
-		res := cpuOut{
+		res := cpu{
 			standard: standard{
 				URL:       val.URL,
 				PartNum:   val.PartNum,
@@ -174,7 +132,7 @@ Outer:
 				Model:     val.Model,
 			},
 		}
-		getCPU(ctx, &res, val.URL)
+		getCPU(ctx, c, &res, val.URL)
 
 		if value, ok := in[val.Model]; ok {
 			if res.Cores == "" && value.Cores != "" {
@@ -217,7 +175,7 @@ Outer:
 	}
 }
 
-func getCPU(ctxt context.Context, res *cpuOut, url string) {
+func getCPU(ctxt context.Context, c *cdp.CDP, res *cpu, url string) {
 	color.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
 	color.Unset()
@@ -383,7 +341,7 @@ func getCPU(ctxt context.Context, res *cpuOut, url string) {
 	}
 }
 
-func getSSD(ctxt context.Context, res *ssd, url string) {
+func getSSD(ctxt context.Context, c *cdp.CDP, res *ssd, url string) {
 	color.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
 	color.Unset()
@@ -518,7 +476,7 @@ func getSSD(ctxt context.Context, res *ssd, url string) {
 	ssds = append(ssds, *res)
 }
 
-func getGPU(ctxt context.Context, res *gpu, url string) {
+func getGPU(ctxt context.Context, c *cdp.CDP, res *gpu, url string) {
 	color.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
 	color.Unset()
