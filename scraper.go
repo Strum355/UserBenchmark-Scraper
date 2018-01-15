@@ -3,131 +3,71 @@ package main
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
-	cdp "github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/runner"
-	"github.com/fatih/color"
+	_ "github.com/fatih/color"
 )
 
 var (
 	conf = new(config)
+	cpus = make(map[string]cpu)
 )
 
 func main() {
 	conf.loadConfig()
 
-	ctxt, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, err := cdp.New(ctxt, cdp.WithRunnerOptions(
-		runner.HeadlessPathPort("/usr/bin/google-chrome-stable", 9222), 
-		runner.Flag("headless", false)), 
-		cdp.WithErrorf(func(s string, v ...interface{}) {
-			if strings.Contains(s, "could not perform") || strings.Contains(s, "could not get"){
+	c, err := chromedp.New(ctx, chromedp.WithRunnerOptions(
+		runner.HeadlessPathPort("/usr/bin/google-chrome-stable", 9222),
+		runner.Flag("headless", true)),
+		chromedp.WithErrorf(func(s string, v ...interface{}) {
+			if strings.Contains(s, "could not perform") || strings.Contains(s, "could not get") {
 				return
 			}
 			log.Printf("error: "+s, v...)
 		}))
-	if err != nil {	
-		fmt.Println(err)
-		return
-	}
-
-	start(ctxt, c)
-
-	if err := c.Shutdown(ctxt); err != nil {
-		fmt.Println(err)
-	}
-}
-
-/*
-	cdp.OuterHTML(`html`, &html, cdp.ByQuery),
-*/
-
-func start(ctx context.Context, c *cdp.CDP) {
-	fmt.Println("STARTING")
-	if err := login(ctx, c); err != nil {
-		fmt.Println("Couldnt login", err)
-		return
-	}
-
-	var html string
-	c.Run(ctx, cdp.Tasks{
-		cdp.Navigate(`http://gpu.userbenchmark.com/Nvidia-GTX-1070/Rating/3609`),
-		cdp.OuterHTML(`html`, &html, cdp.ByQuery),
-	})
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	doc.Find(`.mcs-hl-col`).Each(func(i int, s *goquery.Selection) {
-		fmt.Println(s.Text())
-	})
-	//doCPU(ctx)
+	start(ctx, c)
 
-	/* 	time.Sleep(time.Minute*30)
-
-	   	for name, val := range parseCSV("CPU_UserBenchmarks.csv") {
-	   		var res cpu
-	   		res.Name = name
-	   		getCPU(ctx, &res, val)
-	   		out, err := json.MarshalIndent(cpus, "", "  ")
-	   		if err != nil {
-	   			fmt.Println("JSON: ", err)
-	   			return
-	   		}
-
-	   		err = ioutil.WriteFile("CPU_DATA.json", out, 0644)
-	   		if err != nil {
-	   			fmt.Println("WRITE: ", err)
-	   		}
-	   	} */
-
-	/* 	time.Sleep(time.Minute*30)
-
-	   	for name, val := range parseCSV("GPU_UserBenchmarks.csv") {
-	   		var res gpu
-	   		res.Name = name
-	   		getGPU(ctx, &res, val)
-	   		out, err := json.MarshalIndent(gpus, "", "  ")
-	   		if err != nil {
-	   			fmt.Println("JSON: ", err)
-	   			return
-	   		}
-
-	   		err = ioutil.WriteFile("GPU_DATA.json", out, 0644)
-	   		if err != nil {
-	   			fmt.Println("WRITE: ", err)
-	   		}
-	   	}*/
+	if err := c.Shutdown(ctx); err != nil {
+		fmt.Println(err)
+	}
 }
 
-func login(ctx context.Context, c *cdp.CDP) error {
-	return c.Run(ctx, cdp.Tasks{
-		cdp.Navigate(`http://www.userbenchmark.com/page/login`),
-		cdp.SetValue(`input[name="username"]`, conf.User),
-		cdp.Sleep(time.Second * 1),
-		cdp.SetValue(`input[name="password"]`, conf.Pass),
-		cdp.Sleep(time.Second * 1),
-		cdp.Click(`button[name="submit"]`),
-		cdp.Sleep(time.Second * 2),
-	})
+func start(ctx context.Context, c *chromedp.CDP) {
+	fmt.Println("STARTING")
+	if err := login(ctx, c); err != nil {
+		fmt.Println("Couldnt login", err)
+		return
+	}
 }
 
-func doCPU(ctx context.Context, c *cdp.CDP) {
+func login(ctx context.Context, cdp *chromedp.CDP) error {
+	return cdp.Run(ctx, chromedp.Tasks{
+		chromedp.Navigate(`http://www.userbenchmark.com/page/login`),
+		chromedp.SetValue(`input[name="username"]`, conf.User),
+		chromedp.Sleep(time.Second * 1),
+		chromedp.SetValue(`input[name="password"]`, conf.Pass),
+		chromedp.Sleep(time.Second * 1),
+		chromedp.Click(`button[name="submit"]`),
+		chromedp.Sleep(time.Second * 2),
+	})
+}
+/* 
+func doCPU(ctx context.Context, c *chromedp.CDP) {
 	bytes, err := ioutil.ReadFile("./CPU_DATA_MAP.json")
 	if err != nil {
 		log.Fatalln(err)
@@ -152,16 +92,15 @@ Outer:
 				Model:     val.Model,
 			},
 		}
-		getCPU(ctx, c, &res, val.URL)
 
 		if value, ok := in[val.Model]; ok {
 			if res.Cores == "" && value.Cores != "" {
-				fmt.Println("Failed result cores", val.URL)
+				fmt.Println("Failed result cres", val.URL)
 				continue Outer
 			}
 			for index := range res.Scores {
 				if res.Scores[index] == "" && value.Scores[index] != "" {
-					fmt.Println("Failed result scores", val.URL)
+					fmt.Println("Failed result scres", val.URL)
 					continue Outer
 				}
 			}
@@ -179,7 +118,7 @@ Outer:
 			}
 		}
 
-		// If all checks succeed
+		// If all cecks succeed
 		cpus[res.Model] = res
 
 		out, err := json.MarshalIndent(cpus, "", "  ")
@@ -194,57 +133,58 @@ Outer:
 		}
 	}
 }
-
-func getCPU(ctxt context.Context, c *cdp.CDP, res *cpu, url string) {
-	color.Set(color.FgBlue)
+ */
+/*
+funcgetCPU(ctxt context.Context, c *chromedp.CDP, res *cpu, url string) {
+	clor.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
-	color.Unset()
-	if err := c.Run(ctxt, cdp.Navigate(url)); err != nil {
-		color.Set(color.FgRed)
+	clor.Unset()
+	if err := cRun(ctxt, chromedp.Navigate(url)); err != nil {
+		clor.Set(color.FgRed)
 		fmt.Println("Error navigating to ", url, err)
-		color.Unset()
+		clor.Unset()
 	}
 
-	c.Run(ctxt, cdp.Sleep(time.Second*3))
+	cRun(ctxt, chromedp.Sleep(time.Second*3))
 
-	var wait sync.WaitGroup
+	var wait syncWaitGroup
 	wait.Add(3)
 
-	go func() {
+	go func) {
 		defer wait.Done()
-		ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+		cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 		defer cancel()
-		color.Set(color.FgCyan)
-		fmt.Println("Trying cores")
-		color.Unset()
-		if err := c.Run(ctxt, cdp.Text(`.cmp-cpt.tallp.cmp-cpt-l`, &res.Cores, cdp.ByQuery)); err != nil {
-			color.Set(color.BgRed)
-			fmt.Println("Error getting cores for ", url, err)
-			color.Unset()
+		clor.Set(color.FgCyan)
+		fmt.Println("Trying cres")
+		clor.Unset()
+		if err := cRun(ctxt, chromedp.Text(`.cmp-cpt.tallp.cmp-cpt-l`, &res.Cores, cdp.ByQuery)); err != nil {
+			clor.Set(color.BgRed)
+			fmt.Println("Error getting cres for ", url, err)
+			clor.Unset()
 		} else {
-			color.Set(color.FgGreen)
-			fmt.Println("Found cores")
-			color.Unset()
+			clor.Set(color.FgGreen)
+			fmt.Println("Found cres")
+			clor.Unset()
 		}
 	}()
 
-	go func() {
+	go func) {
 		defer wait.Done()
-		var waitIn sync.WaitGroup
+		var waitIn syncWaitGroup
 		for i := 0; i < 3; i++ {
 			waitIn.Add(2)
-			go func(i int) {
+			go funci int) {
 				defer waitIn.Done()
-				color.Set(color.FgCyan)
-				fmt.Println(i, "Trying green scores")
-				color.Unset()
-				err := func() error {
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+				clor.Set(color.FgCyan)
+				fmt.Println(i, "Trying green scres")
+				clor.Unset()
+				err := func) error {
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
-						color.Set(color.FgYellow)
-						fmt.Println(i, "Error getting scores for ", url, err, "\ntrying yellow")
-						color.Unset()
+					if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
+						clor.Set(color.FgYellow)
+						fmt.Println(i, "Error getting scres for ", url, err, "\ntrying yellow")
+						clor.Unset()
 						return err
 					}
 					return nil
@@ -252,72 +192,72 @@ func getCPU(ctxt context.Context, c *cdp.CDP, res *cpu, url string) {
 
 				//if green fails, try yellow
 				if err != nil {
-					err = func() error {
-						ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+					err = func) error {
+						cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 						defer cancel()
-						if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
-							color.Set(color.FgRed)
-							fmt.Println(i, "Error getting scores for ", url, err, "\ntrying red")
-							color.Unset()
+						if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
+							clor.Set(color.FgRed)
+							fmt.Println(i, "Error getting scres for ", url, err, "\ntrying red")
+							clor.Unset()
 							return err
 						}
 						return nil
 					}()
 				} else {
-					color.Set(color.FgGreen)
+					clor.Set(color.FgGreen)
 					fmt.Println(i, "found green")
-					color.Unset()
+					clor.Unset()
 					return
 				}
 
 				//if yellow fails, try red
 				if err != nil {
-					err = func() error {
-						ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+					err = func) error {
+						cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 						defer cancel()
-						if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
-							color.Set(color.BgRed)
-							fmt.Println(i, "IMPORTANT!! Error getting scores for ", url, err)
-							color.Unset()
+						if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Scores[i], cdp.ByQuery)); err != nil {
+							clor.Set(color.BgRed)
+							fmt.Println(i, "IMPORTANT!! Error getting scres for ", url, err)
+							clor.Unset()
 							return err
 						}
 						return nil
 					}()
 				} else {
-					color.Set(color.FgGreen)
+					clor.Set(color.FgGreen)
 					fmt.Println(i, "found yellow")
-					color.Unset()
+					clor.Unset()
 					return
 				}
 
 				if err == nil {
-					color.Set(color.FgGreen)
+					clor.Set(color.FgGreen)
 					fmt.Println(i, "found red")
-					color.Unset()
+					clor.Unset()
 				}
 			}(i)
 
-			go func(i int) {
+			go funci int) {
 				defer waitIn.Done()
-				color.Set(color.FgCyan)
-				fmt.Println(i, "Trying performance")
-				color.Unset()
-				ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+				clor.Set(color.FgCyan)
+				fmt.Println(i, "Trying performanc")
+				clor.Unset()
+				cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 				defer cancel()
-				if err := c.Run(ctxt, cdp.Text(`.bsc-w.text-left.semi-strong`, &res.SegmentPerf[i], cdp.ByQuery)); err != nil {
-					color.Set(color.FgHiRed)
-					fmt.Println(i, "Error getting performance for ", url, err)
-					color.Unset()
+				if err := cRun(ctxt, chromedp.Text(`.bsc-w.text-left.semi-strong`, &res.SegmentPerf[i], cdp.ByQuery)); err != nil {
+					clor.Set(color.FgHiRed)
+					fmt.Println(i, "Error getting performanc for ", url, err)
+					clor.Unset()
 				} else {
-					color.Set(color.FgGreen)
-					fmt.Println(i, "found performance")
-					color.Unset()
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*10)
+					clor.Set(color.FgGreen)
+					fmt.Println(i, "found performanc")
+					clor.Unset()
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*10)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.SetAttributeValue(`.bsc-w.text-left.semi-strong`, "class", "", cdp.ByQuery)); err != nil {
-						color.Set(color.FgHiRed)
-						fmt.Println(i, `.bsc-w.text-left.semi-strong`, url, err)
-						color.Unset()
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.bsc-w.text-left.semi-strong`, "class", "", cdp.ByQuery)); err != nil {
+						clor.Set(color.FgHiRed)
+						fmt.Println(i, `.bscw.text-left.semi-strong`, url, err)
+						clor.Unset()
 					}
 				}
 			}(i)
@@ -325,27 +265,27 @@ func getCPU(ctxt context.Context, c *cdp.CDP, res *cpu, url string) {
 		}
 	}()
 
-	go func() {
+	go func) {
 		for i := 0; i < 9; i++ {
-			ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+			cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 			defer cancel()
-			color.Set(color.FgCyan)
+			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Subresult")
-			color.Unset()
-			if err := c.Run(ctxt, cdp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
-				color.Set(color.BgHiRed)
+			clor.Unset()
+			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
+				clor.Set(color.BgHiRed)
 				fmt.Print(i, "Error getting subresult", url, err)
-				color.Unset()
+				clor.Unset()
 				fmt.Println()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found subresult")
-				color.Unset()
-				func() {
-					if err := c.Run(ctxt, cdp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
-						color.Set(color.BgHiRed)
-						fmt.Print(i, ".mcs-hl-col", url, err)
-						color.Unset()
+				clor.Unset()
+				func) {
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
+						clor.Set(color.BgHiRed)
+						fmt.Print(i, ".mc-hl-col", url, err)
+						clor.Unset()
 						fmt.Println()
 					}
 				}()
@@ -357,66 +297,66 @@ func getCPU(ctxt context.Context, c *cdp.CDP, res *cpu, url string) {
 	wait.Wait()
 
 	for i, val := range res.SegmentPerf {
-		res.SegmentPerf[i] = strings.Trim(strings.Replace(strings.Replace(val, "\t", "", -1), "\n", " ", -1), " ")
+		res.SegmentPerf[i] = strings.Trim(strings.Replac(strings.Replace(val, "\t", "", -1), "\n", " ", -1), " ")
 	}
-}
-
-func getSSD(ctxt context.Context, c *cdp.CDP, res *ssd, url string) {
-	color.Set(color.FgBlue)
+} */
+/*
+func getSSD(ctxt context.Context, cdp *chromedp.CDP, res *ssd, url string) {
+	clor.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
-	color.Unset()
-	if err := c.Run(ctxt, cdp.Navigate(url)); err != nil {
-		color.Set(color.FgRed)
+	clor.Unset()
+	if err := cp.Run(ctxt, chromedp.Navigate(url)); err != nil {
+		clor.Set(color.FgRed)
 		fmt.Println("Error navigating to ", url, err)
-		color.Unset()
+		clor.Unset()
 		return
 	}
 
-	c.Run(ctxt, cdp.Sleep(time.Second*10))
+	cRun(ctxt, chromedp.Sleep(time.Second*10))
 
-	var wait sync.WaitGroup
+	var wait syncWaitGroup
 	wait.Add(3)
 
 	go func() {
 		defer wait.Done()
-		ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+		cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 		defer cancel()
-		color.Set(color.FgCyan)
-		fmt.Println("Trying controller")
-		color.Unset()
-		if err := c.Run(ctxt, cdp.Text(`.cmp-cpt.medp.cmp-cpt-l`, &res.Controller, cdp.ByQuery)); err != nil {
-			color.Set(color.BgRed)
-			fmt.Println("Error getting controller for ", url, err)
-			color.Unset()
+		clor.Set(color.FgCyan)
+		fmt.Println("Trying cntroller")
+		clor.Unset()
+		if err := cp.Run(ctxt, chromedp.Text(`.cmp-cpt.medp.cmp-cpt-l`, &res.Controller, cdp.ByQuery)); err != nil {
+			clor.Set(color.BgRed)
+			fmt.Println("Error getting cntroller for ", url, err)
+			clor.Unset()
 		} else {
-			color.Set(color.FgGreen)
-			fmt.Println("Found controller")
-			color.Unset()
+			clor.Set(color.FgGreen)
+			fmt.Println("Found cntroller")
+			clor.Unset()
 		}
 	}()
 
 	go func() {
 		defer wait.Done()
 		for i := 0; i < 9; i++ {
-			ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+			cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 			defer cancel()
-			color.Set(color.FgCyan)
+			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Subresult")
-			color.Unset()
-			if err := c.Run(ctxt, cdp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
-				color.Set(color.BgHiRed)
+			clor.Unset()
+			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
+				clor.Set(color.BgHiRed)
 				fmt.Print(i, "Error getting subresult", url, err)
-				color.Unset()
+				clor.Unset()
 				fmt.Println()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found subresult")
-				color.Unset()
+				clor.Unset()
 				func() {
-					if err := c.Run(ctxt, cdp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
-						color.Set(color.BgHiRed)
-						fmt.Print(i, ".mcs-hl-col", url, err)
-						color.Unset()
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
+						clor.Set(color.BgHiRed)
+						fmt.Print(i, ".mc-hl-col", url, err)
+						clor.Unset()
 						fmt.Println()
 					}
 				}()
@@ -427,16 +367,16 @@ func getSSD(ctxt context.Context, c *cdp.CDP, res *ssd, url string) {
 	go func() {
 		defer wait.Done()
 		for i := 0; i < 3; i++ {
-			color.Set(color.FgCyan)
+			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Average")
-			color.Unset()
+			clor.Unset()
 			err := func() error {
-				ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+				cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 				defer cancel()
-				if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Averages[i])); err != nil {
-					color.Set(color.FgYellow)
+				if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Averages[i])); err != nil {
+					clor.Set(color.FgYellow)
 					fmt.Println(i, "Error getting averages for ", url, err, "\ntrying yellow")
-					color.Unset()
+					clor.Unset()
 					return err
 				}
 				return nil
@@ -445,48 +385,48 @@ func getSSD(ctxt context.Context, c *cdp.CDP, res *ssd, url string) {
 			//if green fails, try yellow
 			if err != nil {
 				err = func() error {
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Averages[i])); err != nil {
-						color.Set(color.FgRed)
+					if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Averages[i])); err != nil {
+						clor.Set(color.FgRed)
 						fmt.Println(i, "Error getting averages for ", url, err, "\ntrying red")
-						color.Unset()
+						clor.Unset()
 						return err
 					}
 					return nil
 				}()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found green")
-				color.Unset()
-				continue
+				clor.Unset()
+				cntinue
 			}
 
 			//if yellow fails, try red
 			if err != nil {
 				err = func() error {
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Averages[i])); err != nil {
-						color.Set(color.BgRed)
+					if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Averages[i])); err != nil {
+						clor.Set(color.BgRed)
 						fmt.Print(i, "IMPORTANT!! Error getting averages for ", url, err)
-						color.Unset()
+						clor.Unset()
 						fmt.Println()
 						return err
 					}
 					return nil
 				}()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found yellow")
-				color.Unset()
-				continue
+				clor.Unset()
+				cntinue
 			}
 
 			if err == nil {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found red")
-				color.Unset()
+				clor.Unset()
 			}
 		}
 	}()
@@ -496,42 +436,42 @@ func getSSD(ctxt context.Context, c *cdp.CDP, res *ssd, url string) {
 	ssds = append(ssds, *res)
 }
 
-func getGPU(ctxt context.Context, c *cdp.CDP, res *gpu, url string) {
-	color.Set(color.FgBlue)
+func getGPU(ctxt context.Context, c *chromedp.CDP, res *gpu, url string) {
+	clor.Set(color.FgBlue)
 	fmt.Println("Going to ", url)
-	color.Unset()
-	if err := c.Run(ctxt, cdp.Navigate(url)); err != nil {
-		color.Set(color.FgRed)
+	clor.Unset()
+	if err := cRun(ctxt, chromedp.Navigate(url)); err != nil {
+		clor.Set(color.FgRed)
 		fmt.Println("Error navigating to ", url, err)
-		color.Unset()
+		clor.Unset()
 		return
 	}
 
-	c.Run(ctxt, cdp.Sleep(time.Second*10))
+	cRun(ctxt, chromedp.Sleep(time.Second*10))
 
-	var wait sync.WaitGroup
+	var wait syncWaitGroup
 	wait.Add(2)
 	go func() {
 		for i := 0; i < 6; i++ {
-			ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+			cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 			defer cancel()
-			color.Set(color.FgCyan)
+			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Subresult")
-			color.Unset()
-			if err := c.Run(ctxt, cdp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
-				color.Set(color.BgHiRed)
+			clor.Unset()
+			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
+				clor.Set(color.BgHiRed)
 				fmt.Print(i, "Error getting subresult", url, err)
-				color.Unset()
+				clor.Unset()
 				fmt.Println()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found subresult")
-				color.Unset()
+				clor.Unset()
 				func() {
-					if err := c.Run(ctxt, cdp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
-						color.Set(color.BgHiRed)
-						fmt.Print(i, ".mcs-hl-col", url, err)
-						color.Unset()
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
+						clor.Set(color.BgHiRed)
+						fmt.Print(i, ".mc-hl-col", url, err)
+						clor.Unset()
 						fmt.Println()
 					}
 				}()
@@ -542,16 +482,16 @@ func getGPU(ctxt context.Context, c *cdp.CDP, res *gpu, url string) {
 
 	go func() {
 		for i := 0; i < 2; i++ {
-			color.Set(color.FgCyan)
+			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Average")
-			color.Unset()
+			clor.Unset()
 			err := func() error {
-				ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+				cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 				defer cancel()
-				if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Averages[i])); err != nil {
-					color.Set(color.FgYellow)
+				if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3), &res.Averages[i])); err != nil {
+					clor.Set(color.FgYellow)
 					fmt.Println(i, "Error getting averages for ", url, err, "\ntrying yellow")
-					color.Unset()
+					clor.Unset()
 					return err
 				}
 				return nil
@@ -560,48 +500,48 @@ func getGPU(ctxt context.Context, c *cdp.CDP, res *gpu, url string) {
 			//if green fails, try yellow
 			if err != nil {
 				err = func() error {
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Averages[i])); err != nil {
-						color.Set(color.FgRed)
+					if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3), &res.Averages[i])); err != nil {
+						clor.Set(color.FgRed)
 						fmt.Println(i, "Error getting averages for ", url, err, "\ntrying red")
-						color.Unset()
+						clor.Unset()
 						return err
 					}
 					return nil
 				}()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found green")
-				color.Unset()
-				continue
+				clor.Unset()
+				cntinue
 			}
 
 			//if yellow fails, try red
 			if err != nil {
 				err = func() error {
-					ctxt, cancel := context.WithTimeout(ctxt, time.Second*20)
+					cxt, cancel := context.WithTimeout(ctxt, time.Second*20)
 					defer cancel()
-					if err := c.Run(ctxt, cdp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Averages[i])); err != nil {
-						color.Set(color.BgRed)
+					if err := cRun(ctxt, chromedp.Text(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3), &res.Averages[i])); err != nil {
+						clor.Set(color.BgRed)
 						fmt.Print(i, "IMPORTANT!! Error getting averages for ", url, err)
-						color.Unset()
+						clor.Unset()
 						fmt.Println()
 						return err
 					}
 					return nil
 				}()
 			} else {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found yellow")
-				color.Unset()
-				continue
+				clor.Unset()
+				cntinue
 			}
 
 			if err == nil {
-				color.Set(color.FgGreen)
+				clor.Set(color.FgGreen)
 				fmt.Println(i, "found red")
-				color.Unset()
+				clor.Unset()
 			}
 		}
 		wait.Done()
@@ -610,7 +550,7 @@ func getGPU(ctxt context.Context, c *cdp.CDP, res *gpu, url string) {
 	wait.Wait()
 
 	gpus = append(gpus, *res)
-}
+} */
 
 func parseCSV(filename string) (out map[string]standard) {
 	out = make(map[string]standard)
@@ -668,13 +608,4 @@ func parseCSV(filename string) (out map[string]standard) {
 	}
 
 	return
-}
-
-func isIn(name string) bool {
-	for _, r := range gpus {
-		if r.Name == name {
-			return true
-		}
-	}
-	return false
 }

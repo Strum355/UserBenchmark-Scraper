@@ -32,9 +32,3 @@ type ssd struct {
 	Averages         [3]string
 	standard
 }
-
-var ssds []ssd
-
-var gpus []gpu
-
-var cpus = make(map[string]cpu)
