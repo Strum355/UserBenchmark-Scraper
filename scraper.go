@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fatih/color"
-
+	"github.com/PuerkitoBio/goquery"
 	cdp "github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/runner"
+	"github.com/fatih/color"
 )
 
 var (
@@ -30,10 +30,15 @@ func main() {
 	defer cancel()
 
 	c, err := cdp.New(ctxt, cdp.WithRunnerOptions(
-		runner.HeadlessPathPort("/usr/bin/google-chrome-stable", 9222),
-		runner.Flag("headless", true),
-	))
-	if err != nil {
+		runner.HeadlessPathPort("/usr/bin/google-chrome-stable", 9222), 
+		runner.Flag("headless", false)), 
+		cdp.WithErrorf(func(s string, v ...interface{}) {
+			if strings.Contains(s, "could not perform") || strings.Contains(s, "could not get"){
+				return
+			}
+			log.Printf("error: "+s, v...)
+		}))
+	if err != nil {	
 		fmt.Println(err)
 		return
 	}
@@ -45,8 +50,8 @@ func main() {
 	}
 }
 
-/* 
-		cdp.OuterHTML(`html`, &html, cdp.ByQuery),
+/*
+	cdp.OuterHTML(`html`, &html, cdp.ByQuery),
 */
 
 func start(ctx context.Context, c *cdp.CDP) {
@@ -56,6 +61,21 @@ func start(ctx context.Context, c *cdp.CDP) {
 		return
 	}
 
+	var html string
+	c.Run(ctx, cdp.Tasks{
+		cdp.Navigate(`http://gpu.userbenchmark.com/Nvidia-GTX-1070/Rating/3609`),
+		cdp.OuterHTML(`html`, &html, cdp.ByQuery),
+	})
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	doc.Find(`.mcs-hl-col`).Each(func(i int, s *goquery.Selection) {
+		fmt.Println(s.Text())
+	})
 	//doCPU(ctx)
 
 	/* 	time.Sleep(time.Minute*30)
