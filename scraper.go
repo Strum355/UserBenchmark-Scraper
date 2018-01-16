@@ -1,12 +1,13 @@
 package main
 
 import (
+	"errors"
 	"context"
-	"encoding/csv"
+	_"encoding/csv"
 	"fmt"
 	"log"
-	"os"
-	"strconv"
+	_"os"
+	_"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +18,8 @@ import (
 
 var (
 	conf = new(config)
-	cpus = make(map[string]cpu)
+	cpus = new(CPUs)
+	ErrNotValid = errors.New("parts were missed")
 )
 
 func main() {
@@ -66,7 +68,8 @@ func login(ctx context.Context, cdp *chromedp.CDP) error {
 		chromedp.Sleep(time.Second * 2),
 	})
 }
-/* 
+
+/*
 func doCPU(ctx context.Context, c *chromedp.CDP) {
 	bytes, err := ioutil.ReadFile("./CPU_DATA_MAP.json")
 	if err != nil {
@@ -133,7 +136,7 @@ Outer:
 		}
 	}
 }
- */
+*/
 /*
 funcgetCPU(ctxt context.Context, c *chromedp.CDP, res *cpu, url string) {
 	clor.Set(color.FgBlue)
@@ -552,7 +555,7 @@ func getGPU(ctxt context.Context, c *chromedp.CDP, res *gpu, url string) {
 	gpus = append(gpus, *res)
 } */
 
-func parseCSV(filename string) (out map[string]standard) {
+/* func parseCSV(filename string) (out map[string]standard) {
 	out = make(map[string]standard)
 	copies := make(map[string]bool)
 
@@ -609,3 +612,4 @@ func parseCSV(filename string) (out map[string]standard) {
 
 	return
 }
+ */
