@@ -69,6 +69,15 @@ func login(ctx context.Context, cdp *chromedp.CDP) error {
 	})
 }
 
+func getOuterHTML(ctx context.Context, c CPU, cdp *chromedp.CDP, s *string) {
+	if err := cdp.Run(ctx, chromedp.Tasks{
+		chromedp.Navigate(c.URL),
+		chromedp.OuterHTML(`html`, s, chromedp.ByQuery),
+	}); err != nil {
+		fmt.Printf("%s %s\n", c.URL, err)
+	}
+}
+
 /*
 func doCPU(ctx context.Context, c *chromedp.CDP) {
 	bytes, err := ioutil.ReadFile("./CPU_DATA_MAP.json")

@@ -12,12 +12,7 @@ import (
 func (c CPU) getCPU(ctx context.Context, cdp *chromedp.CDP, url string) (CPU, error) {
 	var html string
 
-	if err := cdp.Run(ctx, chromedp.Tasks{
-		chromedp.Navigate(c.URL),
-		chromedp.OuterHTML(`html`, &html, chromedp.ByQuery),
-	}); err != nil {
-		fmt.Printf("%s %s\n", c.URL, err)
-	}
+	getOuterHTML(ctx, c, cdp, &html)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
@@ -25,25 +20,27 @@ func (c CPU) getCPU(ctx context.Context, cdp *chromedp.CDP, url string) (CPU, er
 		return c, err
 	}
 
-	c.getCores(doc)
-	c.getAverages(doc)
-	c.getSubResults(doc)
-	c.getRelPerf(doc)
+	c.getCores(*doc)
+	c.getAverages(*doc)
+	c.getSubResults(*doc)
+	c.getRelPerf(*doc)
 
 	fmt.Println(&c)
 
 	if old, ok := cpus.get(c.Model); ok {
-		c.isValid(old)
+		if !c.isValid(old) {
+			return c, ErrNotValid
+		}
 	}
 
 	return c, nil
 }
 
-func (c *CPU) getCores(doc *goquery.Document) {
+func (c *CPU) getCores(doc goquery.Document) {
 	c.Cores = doc.Find(`.cmp-cpt.tallp.cmp-cpt-l`).Text()
 }
 
-func (c *CPU) getAverages(doc *goquery.Document) {
+func (c *CPU) getAverages(doc goquery.Document) {
 	for i := 0; i < 3; i++ {
 		c.Scores[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3)).Text()
 		if c.Scores[i] == "" {
@@ -55,7 +52,7 @@ func (c *CPU) getAverages(doc *goquery.Document) {
 	}
 }
 
-func (c *CPU) getSubResults(doc *goquery.Document) {
+func (c *CPU) getSubResults(doc goquery.Document) {
 	doc.Find(`.mcs-hl-col`).EachWithBreak(func(i int, s *goquery.Selection) bool {
 		c.SubResults[i] = s.Text()
 		if i == 8 {
@@ -65,7 +62,7 @@ func (c *CPU) getSubResults(doc *goquery.Document) {
 	})
 }
 
-func (c *CPU) getRelPerf(doc *goquery.Document) {
+func (c *CPU) getRelPerf(doc goquery.Document) {
 	doc.Find(`.bsc-w.text-left.semi-strong`).EachWithBreak(func(i int, s *goquery.Selection) bool {
 		c.SegmentPerf[i] = s.Text()
 		if i == 2 {
