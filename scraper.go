@@ -71,18 +71,19 @@ func login(ctx context.Context, cdp *chromedp.CDP) error {
 	return cdp.Run(ctx, chromedp.Tasks{
 		chromedp.Navigate(`http://www.userbenchmark.com/page/login`),
 		chromedp.SetValue(`input[name="username"]`, conf.User),
-		chromedp.Sleep(time.Second * 1),
 		chromedp.SetValue(`input[name="password"]`, conf.Pass),
-		chromedp.Sleep(time.Second * 1),
+		chromedp.Sleep(time.Second),
 		chromedp.Click(`button[name="submit"]`),
 		chromedp.Sleep(time.Second*5),
 	})
 }
 
-func GetOuterHTML(ctx context.Context, c Component, cdp *chromedp.CDP, s *string) error{
+func GetOuterHTML(ctx context.Context, c Component, cdp *chromedp.CDP, s *string) error {
 	return cdp.Run(ctx, chromedp.Tasks{
 		chromedp.Navigate(c.GetURL()),
-		chromedp.OuterHTML(`html`, s, chromedp.ByQuery),
+		chromedp.Sleep(time.Second*5),
+		chromedp.WaitReady(`body`, chromedp.BySearch),
+		chromedp.OuterHTML(`body`, s, chromedp.BySearch),
 	})
 }
 
@@ -179,7 +180,7 @@ func getSSD(ctxt context.Context, cdp *chromedp.CDP, res *ssd, url string) {
 		clor.Set(color.FgCyan)
 		fmt.Println("Trying cntroller")
 		clor.Unset()
-		if err := cp.Run(ctxt, chromedp.Text(`.cmp-cpt.medp.cmp-cpt-l`, &res.Controller, cdp.ByQuery)); err != nil {
+		if err := cp.Run(ctxt, chromedp.Text(`.cmp-cpt.medp.cmp-cpt-l`, &res.Controller, cdp.BySearch)); err != nil {
 			clor.Set(color.BgRed)
 			fmt.Println("Error getting cntroller for ", url, err)
 			clor.Unset()
@@ -198,7 +199,7 @@ func getSSD(ctxt context.Context, cdp *chromedp.CDP, res *ssd, url string) {
 			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Subresult")
 			clor.Unset()
-			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
+			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.BySearch)); err != nil {
 				clor.Set(color.BgHiRed)
 				fmt.Print(i, "Error getting subresult", url, err)
 				clor.Unset()
@@ -208,7 +209,7 @@ func getSSD(ctxt context.Context, cdp *chromedp.CDP, res *ssd, url string) {
 				fmt.Println(i, "found subresult")
 				clor.Unset()
 				func() {
-					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.BySearch)); err != nil {
 						clor.Set(color.BgHiRed)
 						fmt.Print(i, ".mc-hl-col", url, err)
 						clor.Unset()
@@ -313,7 +314,7 @@ func getGPU(ctxt context.Context, c *chromedp.CDP, res *gpu, url string) {
 			clor.Set(color.FgCyan)
 			fmt.Println(i, "Trying Subresult")
 			clor.Unset()
-			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.ByQuery)); err != nil {
+			if err := cRun(ctxt, chromedp.Text(`.mcs-hl-col`, &res.SubResults[i], cdp.BySearch)); err != nil {
 				clor.Set(color.BgHiRed)
 				fmt.Print(i, "Error getting subresult", url, err)
 				clor.Unset()
@@ -323,7 +324,7 @@ func getGPU(ctxt context.Context, c *chromedp.CDP, res *gpu, url string) {
 				fmt.Println(i, "found subresult")
 				clor.Unset()
 				func() {
-					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.ByQuery)); err != nil {
+					if err := cRun(ctxt, chromedp.SetAttributeValue(`.mcs-hl-col`, "class", "", cdp.BySearch)); err != nil {
 						clor.Set(color.BgHiRed)
 						fmt.Print(i, ".mc-hl-col", url, err)
 						clor.Unset()

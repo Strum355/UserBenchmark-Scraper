@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"context"
 	"fmt"
 	"strings"
@@ -12,8 +13,10 @@ import (
 func (c CPU) Get(ctx context.Context, cdp *chromedp.CDP, url string) (Component, error) {
 	var html string
 
-	fmt.Println(GetOuterHTML(ctx, c, cdp, &html))
-
+	if err := GetOuterHTML(ctx, c, cdp, &html); err != nil {
+		fmt.Println(err)
+		return c, err
+	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		fmt.Println(err)
@@ -25,7 +28,9 @@ func (c CPU) Get(ctx context.Context, cdp *chromedp.CDP, url string) (Component,
 	c.GetSubResults(*doc, ctx, cdp)
 	c.GetRelPerf(*doc, ctx, cdp)
 
-	fmt.Println(&c)
+	b, _ := json.MarshalIndent(c, "", "  ")
+
+	fmt.Println(string(b))
 
 	if old, ok := cpus.Get(c.Model); ok {
 		if !c.IsValid(old) {
@@ -41,16 +46,13 @@ func (c CPU) GetURL() string {
 }
 
 func (c *CPU) GetCores(doc goquery.Document, ctx context.Context, cdp *chromedp.CDP) {
-	fmt.Println("waiting")
 	err := cdp.Run(ctx, chromedp.Tasks{
 		chromedp.WaitVisible(`.cmp-cpt.tallp.cmp-cpt-l`),
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("done waiting")
 	c.Cores = doc.Find(`.cmp-cpt.tallp.cmp-cpt-l`).Text()
-	fmt.Println(c.Cores)
 }
 
 func (c *CPU) GetAverages(doc goquery.Document) {
@@ -63,47 +65,50 @@ func (c *CPU) GetAverages(doc goquery.Document) {
 			}
 		}
 	}
-	fmt.Println(c.Scores)
 }
 
 func (c *CPU) GetSubResults(doc goquery.Document, ctx context.Context, cdp *chromedp.CDP) {
-	fmt.Println("waiting")
 	err := cdp.Run(ctx, chromedp.Tasks{
 		chromedp.WaitVisible(`.mcs-hl-col`),
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("done waiting")
 
 	doc.Find(`.mcs-hl-col`).EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if i == 8 {
-			return true
+			return false
 		}
 		c.SubResults[i] = s.Text()
-		return false
+		return true
 	})
-	fmt.Println(c.SubResults)
 }
 
 func (c *CPU) GetRelPerf(doc goquery.Document, ctx context.Context, cdp *chromedp.CDP) {
-	fmt.Println("waiting")
 	err := cdp.Run(ctx, chromedp.Tasks{
 		chromedp.WaitVisible(`.bsc-w.text-left.semi-strong`),
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("done waiting")
 
-	doc.Find(`.bsc-w.text-left.semi-strong`).EachWithBreak(func(i int, s *goquery.Selection) bool {
+	doc.Find(`.bsc-w.text-left.semi-strong div:first-child`).EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if i == 3 {
-			return true
+			return false
 		}
-		c.SegmentPerf[i] = s.Text()
-		return false
+		c.SegmentPerf[i] = strings.TrimSpace(s.Text())
+		return true
 	})
-	fmt.Println(c.SegmentPerf)
+
+	doc.Find(`.bsc-w.text-left.semi-strong div:nth-child(3)`).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if i == 3 {
+			return false
+		}
+		c.SegmentPerf[i] += " "+s.Text()	
+		return true
+	})
+
+	
 }
 
 func (c CPU) IsValid(old CPU) bool {
