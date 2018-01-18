@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"context"
 	"fmt"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 func (c CPU) Get(ctx context.Context, cdp *chromedp.CDP, url string) (Component, error) {
 	var html string
-
 	if err := GetOuterHTML(ctx, c, cdp, &html); err != nil {
 		fmt.Println(err)
 		return c, err
@@ -26,16 +24,10 @@ func (c CPU) Get(ctx context.Context, cdp *chromedp.CDP, url string) (Component,
 	c.GetCores(*doc, ctx, cdp)
 	c.GetAverages(*doc)
 	c.GetSubResults(*doc, ctx, cdp)
-	c.GetRelPerf(*doc, ctx, cdp)
-
-	b, _ := json.MarshalIndent(c, "", "  ")
-
-	fmt.Println(string(b))
+	c.GetRelativePerf(*doc, ctx, cdp)
 
 	if old, ok := cpus.Get(c.Model); ok {
-		if !c.IsValid(old) {
-			return c, ErrNotValid
-		}
+		return c, c.IsValid(old) 
 	}
 
 	return c, nil
@@ -57,11 +49,11 @@ func (c *CPU) GetCores(doc goquery.Document, ctx context.Context, cdp *chromedp.
 
 func (c *CPU) GetAverages(doc goquery.Document) {
 	for i := 0; i < 3; i++ {
-		c.Scores[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3)).Text()
-		if c.Scores[i] == "" {
-			c.Scores[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3)).Text()
-			if c.Scores[i] == "" {
-				c.Scores[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3)).Text()
+		c.Averages[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pgbg`, i+3)).Text()
+		if c.Averages[i] == "" {
+			c.Averages[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.pybg`, i+3)).Text()
+			if c.Averages[i] == "" {
+				c.Averages[i] = doc.Find(fmt.Sprintf(`.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(%d) .mcs-caption.prbg`, i+3)).Text()
 			}
 		}
 	}
@@ -84,7 +76,7 @@ func (c *CPU) GetSubResults(doc goquery.Document, ctx context.Context, cdp *chro
 	})
 }
 
-func (c *CPU) GetRelPerf(doc goquery.Document, ctx context.Context, cdp *chromedp.CDP) {
+func (c *CPU) GetRelativePerf(doc goquery.Document, ctx context.Context, cdp *chromedp.CDP) {
 	err := cdp.Run(ctx, chromedp.Tasks{
 		chromedp.WaitVisible(`.bsc-w.text-left.semi-strong`),
 	})
@@ -107,22 +99,22 @@ func (c *CPU) GetRelPerf(doc goquery.Document, ctx context.Context, cdp *chromed
 		c.SegmentPerf[i] += " "+s.Text()	
 		return true
 	})
-
-	
 }
 
-func (c CPU) IsValid(old CPU) bool {
+// IsValid compares c to old and returns ErrNotValid if any of the fields and/or array elements
+// are empty in c but not in old
+func (c CPU) IsValid(old CPU) error {
 	switch {
 	case c.Cores == "" && old.Cores != "":
-		return false
-	case !equallyEmpty(c.Scores[:], old.Scores[:]):
-		return false
+		return ErrNotValid
+	case !equallyEmpty(c.Averages[:], old.Averages[:]):
+		return ErrNotValid
 	case !equallyEmpty(c.SegmentPerf[:], old.SegmentPerf[:]):
-		return false
+		return ErrNotValid
 	case !equallyEmpty(c.SubResults[:], old.SubResults[:]):
-		return false
+		return ErrNotValid
 	default:
-		return true
+		return nil
 	}
 }
 

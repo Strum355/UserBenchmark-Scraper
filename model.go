@@ -13,20 +13,20 @@ type (
 	}
 
 	Standard struct {
-		URL       string  `json:"url"`
-		PartNum   string  `json:"part"`
-		Brand     string  `json:"brand"`
-		Rank      int     `json:"rank"`
-		Benchmark float32 `json:"benchmark"`
-		Samples   int     `json:"samples"`
-		Model     string  `json:"model"`
+		URL       string  `json:"url,omitempty"`
+		PartNum   string  `json:"part,omitempty"`
+		Brand     string  `json:"brand,omityempty"`
+		Rank      int     `json:"rank,omityempty"`
+		Benchmark float32 `json:"benchmark,omitempty"`
+		Samples   int     `json:"samples,omitempty"`
+		Model     string  `json:"model,omitempty"`
 	}
 
 	CPU struct {
-		Cores       string    `json:"cores"`       //Cores
-		Scores      [3]string `json:"scores"`      //Averages
-		SegmentPerf [3]string `json:"performance"` //Relative Performance
-		SubResults  [9]string `json:"subresults"`  //Sub Results
+		Cores       string    `json:"cores,omitempty"`//Cores
+		Averages    [3]string `json:"scores"`      	  //Averages
+		SegmentPerf [3]string `json:"performance"`    //Relative Performance
+		SubResults  [9]string `json:"subresults"`     //Sub Results
 		Standard
 	}
 
@@ -39,8 +39,8 @@ type (
 	GPU struct {
 		//lighting, reflection, parallax
 		//mrender, gravity, splatting
-		SubResults [6]string
-		Averages   [2]string
+		SubResults [6]string `json:"subresults"`
+		Averages   [2]string `json:"scores"`
 		Standard
 	}
 

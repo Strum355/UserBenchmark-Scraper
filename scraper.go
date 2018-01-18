@@ -20,7 +20,12 @@ var (
 	conf = new(config)
 	cpus = new(CPUs)
 	gpus = new(GPUs)
-	ErrNotValid = errors.New("parts were missed")
+	// ErrNotValid is returned if fields of the item are missing fields compared to the previously 
+	// stored entry.
+	ErrNotValid = errors.New("fields were missed")
+	// ErrNewEntry is returned if the item does not reside in the map.
+	// This can be ignored if it is being scraped for the first time eg if its newly added to the CSV.
+	ErrNewEntry = errors.New("entry not in map")
 )
 
 func main() {
