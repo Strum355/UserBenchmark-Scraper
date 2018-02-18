@@ -1,8 +1,9 @@
 package main
 
 import (
-	"sync"
 	"context"
+	"sync"
+
 	"github.com/chromedp/chromedp"
 )
 
@@ -23,22 +24,20 @@ type (
 	}
 
 	CPU struct {
-		Cores       string    `json:"cores,omitempty"`//Cores
-		Averages    [3]string `json:"scores"`      	  //Averages
-		SegmentPerf [3]string `json:"performance"`    //Relative Performance
-		SubResults  [9]string `json:"subresults"`     //Sub Results
+		Cores       string    `json:"cores,omitempty"` //Cores
+		Averages    [3]string `json:"scores"`          //Averages
+		SegmentPerf [3]string `json:"performance"`     //Relative Performance
+		SubResults  [9]string `json:"subresults"`      //Sub Results
 		Standard
 	}
 
 	CPUs struct {
 		sync.RWMutex
-		norm map[string]*CPU
-		rank map[int]*CPU
+		norm map[string]CPU
+		rank map[int]CPU
 	}
 
 	GPU struct {
-		//lighting, reflection, parallax
-		//mrender, gravity, splatting
 		SubResults [6]string `json:"subresults"`
 		Averages   [2]string `json:"scores"`
 		Standard
@@ -46,53 +45,59 @@ type (
 
 	GPUs struct {
 		sync.RWMutex
-		norm map[string]*GPU
-		rank map[int]*GPU
+		norm map[string]GPU
+		rank map[int]GPU
 	}
 
-	ssd struct {
-		Name, Controller string
-		SubResults       [9]string
-		Averages         [3]string
+	SSD struct {
+		Controller string    `json:"controller"`
+		SubResults [9]string `json:"subresults"`
+		Averages   [3]string `json:"scores"`
 		Standard
 	}
 
-
+	SSDs struct {
+		sync.RWMutex
+		norm map[string]SSD
+		rank map[int]SSD
+	}
 )
 
-/*
-	if ret != nil {} may be premature optimization or not even an optimization
-	at all, will look at later in life
-*/
-
-func (c *CPUs) Get(s string) (CPU, bool) {
+func (c *CPUs) Get(in string) (CPU, bool) {
 	c.RLock()
-	ret, ok := c.norm[s]
-	c.RUnlock()
-	if ret == nil {
-		return CPU{}, ok
-	}
-	return *ret, ok
+	defer c.RUnlock()
+	ret, ok := c.norm[in]
+	return ret, ok
 }
 
-func (c *CPUs) Set(s string, v CPU) {
+func (c *CPUs) Set(in string, v CPU) {
 	c.Lock()
-	c.norm[s] = &v
-	c.Unlock()
+	defer c.Unlock()
+	c.norm[in] = v
 }
 
-func (g *GPUs) Get(s string) (GPU, bool) {
+func (g *GPUs) Get(in string) (GPU, bool) {
 	g.RLock()
-	ret, ok := g.norm[s]
-	g.RUnlock()
-	if ret == nil {
-		return GPU{}, ok
-	}
-	return *ret, ok
+	defer g.RUnlock()
+	ret, ok := g.norm[in]
+	return ret, ok
 }
 
-func (g *GPUs) Set(s string, v GPU) {
+func (g *GPUs) Set(in string, v GPU) {
 	g.Lock()
-	g.norm[s] = &v
-	g.Unlock()
+	defer g.Unlock()
+	g.norm[in] = v
+}
+
+func (s *SSDs) Get(in string) (SSD, bool) {
+	s.RLock()
+	defer s.RUnlock()
+	ret, ok := s.norm[in]
+	return ret, ok
+}
+
+func (s *SSDs) Set(in string, v SSD) {
+	s.Lock()
+	defer s.Unlock()
+	s.norm[in] = v
 }

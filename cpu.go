@@ -27,7 +27,7 @@ func (c CPU) Get(ctx context.Context, cdp *chromedp.CDP, url string) (Component,
 	c.GetRelativePerf(*doc, ctx, cdp)
 
 	if old, ok := cpus.Get(c.Model); ok {
-		return c, c.IsValid(old) 
+		return c, c.IsValid(old)
 	}
 
 	return c, nil
@@ -96,7 +96,7 @@ func (c *CPU) GetRelativePerf(doc goquery.Document, ctx context.Context, cdp *ch
 		if i == 3 {
 			return false
 		}
-		c.SegmentPerf[i] += " "+s.Text()	
+		c.SegmentPerf[i] += " " + s.Text()
 		return true
 	})
 }

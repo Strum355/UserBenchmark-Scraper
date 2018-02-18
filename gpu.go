@@ -39,13 +39,13 @@ func (g GPU) GetURL() string {
 }
 
 func (g *GPU) GetSubResults(doc goquery.Document) {
-	doc.Find(`mcs-hl-col`).EachWithBreak(func(i int, s *goquery.Selection) bool{
+	doc.Find(`mcs-hl-col`).EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if i == 6 {
 			return true
 		}
 		g.SubResults[i] = s.Text()
 		return false
-	}) 
+	})
 }
 
 func (g *GPU) GetAverages(doc goquery.Document) {

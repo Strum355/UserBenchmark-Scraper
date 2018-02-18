@@ -1,13 +1,13 @@
 package main
 
 import (
-	"errors"
 	"context"
-	_"encoding/csv"
+	_ "encoding/csv"
+	"errors"
 	"fmt"
 	"log"
-	_"os"
-	_"strconv"
+	_ "os"
+	_ "strconv"
 	"strings"
 	"time"
 
@@ -20,7 +20,8 @@ var (
 	conf = new(config)
 	cpus = new(CPUs)
 	gpus = new(GPUs)
-	// ErrNotValid is returned if fields of the item are missing fields compared to the previously 
+	ssds = new(SSDs)
+	// ErrNotValid is returned if fields of the item are missing fields compared to the previously
 	// stored entry.
 	ErrNotValid = errors.New("fields were missed")
 	// ErrNewEntry is returned if the item does not reside in the map.
@@ -79,14 +80,14 @@ func login(ctx context.Context, cdp *chromedp.CDP) error {
 		chromedp.SetValue(`input[name="password"]`, conf.Pass),
 		chromedp.Sleep(time.Second),
 		chromedp.Click(`button[name="submit"]`),
-		chromedp.Sleep(time.Second*5),
+		chromedp.Sleep(time.Second * 5),
 	})
 }
 
 func GetOuterHTML(ctx context.Context, c Component, cdp *chromedp.CDP, s *string) error {
 	return cdp.Run(ctx, chromedp.Tasks{
 		chromedp.Navigate(c.GetURL()),
-		chromedp.Sleep(time.Second*5),
+		chromedp.Sleep(time.Second * 5),
 		chromedp.WaitReady(`body`, chromedp.BySearch),
 		chromedp.OuterHTML(`body`, s, chromedp.BySearch),
 	})
@@ -470,4 +471,4 @@ func getGPU(ctxt context.Context, c *chromedp.CDP, res *gpu, url string) {
 
 	return
 }
- */
+*/
