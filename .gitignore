@@ -1,2 +1,3 @@
-*.json
-*.csv
+node_modules
+js/
+.vscode
