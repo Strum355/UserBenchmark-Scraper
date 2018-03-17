@@ -1,35 +1,57 @@
-interface Component {
-    readonly URL: string,
-    readonly PartNum: string,
-    readonly Brand: string,
-    readonly Model: string,
-    Rank: number,
-    Benchmark: number,
-    Samples: number,
+import * as Nightmare from 'nightmare'
 
-    isValid(old: Component): boolean
+export abstract class Component {
+    url: string = ""
+    partNum: string = ""
+    brand: string = ""
+    model: string = "" 
+    rank: number = 0
+    benchmark: number = 0
+    samples: number = 0
+
+    abstract isValid(old: Component): boolean
+    abstract get(): Component
 }
 
-class CPU implements Component {
-    cores: string
+export class CPU extends Component {
+    cores: string = ""
     averages: string[]
     performance: string[]
-    subresults: string[]
-    URL: string
-    PartNum: string
-    Brand: string
-    Model: string
-    Rank: number
-    Benchmark: number
-    Samples: number
+    subResults: string[]
 
     constructor() {
+        super()
         this.averages = new Array(3)
         this.performance = new Array(3)
-        this.subresults = new Array(9)
+        this.subResults = new Array(9)
     }
     
     isValid(old: Component): boolean {
         return true
+    }
+
+    get(): CPU {
+
+        return this
+    }
+
+    getCores(n: Nightmare) {
+        
+    }
+}
+
+export class GPU extends Component {
+    constructor() {
+        super()
+        
+    }
+
+    isValid(old: Component): boolean {
+        return true
+    }
+
+    get(): GPU {
+
+        return this
     }
 }
