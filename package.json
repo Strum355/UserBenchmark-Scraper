@@ -1,0 +1,21 @@
+{
+  "name": "userbenchmark-scraper",
+  "version": "0.1.0",
+  "description": "Restarting this in TypeScript with NightmareJS, after chromedp let me down ;_; Might revisit golang branch once chromedp matures",
+  "main": "js/main.js",
+  "dependencies": {
+    "@types/nightmare": "^2.10.2",
+    "electron": "^1.8.2",
+    "nightmare": "^2.10.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com/UserBenchmark-Mobile:UserBenchmark-Scraper.git"
+  },
+  "author": "Noah Santschi-Cooney (Strum355)",
+  "license": "MIT"
+}
