@@ -4,8 +4,10 @@
   "description": "Restarting this in TypeScript with NightmareJS, after chromedp let me down ;_; Might revisit golang branch once chromedp matures",
   "main": "js/main.js",
   "dependencies": {
+    "@types/jsdom": "^11.0.4",
     "@types/nightmare": "^2.10.2",
     "electron": "^1.8.2",
+    "jsdom": "^11.6.2",
     "nightmare": "^2.10.0"
   },
   "devDependencies": {},

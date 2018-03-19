@@ -40,27 +40,32 @@ export class CPU extends Component {
 
     getCores(body: HTMLBodyElement, n: Nightmare) {
         let sel = '.cmp-cpt.tallp.cmp-cpt-l'
-        n.exists(sel, (exists: boolean) => {
-            if(exists) {
-                this.cores = body.querySelector(sel)!.textContent!
-                return
-            }
-            this.cores = ""
-        })
+        n.exists(sel)
+            .then((exists: boolean) => {
+                console.log("cores", exists)
+                if(exists) {
+                    this.cores = body.querySelector(sel)!.textContent!
+                    console.log(this)
+                    console.log(this.cores)
+                    return
+                }
+                this.cores = ""
+            })
     }
 
     getAverages(body: HTMLBodyElement, n: Nightmare) {
         for(var i = 0; i < 3; i++) {
-            let selGreen  = '.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.pgbg'
-            let selYellow = '.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.pybg'
-            let selRed    = '.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.prbg'
-            n.exists(`${selGreen}, ${selYellow}, ${selRed}`, (exists: boolean) => {
-                if(exists) {
-                    this.averages[i] = body.querySelector(`${selGreen}, ${selYellow}, ${selRed}`)!.textContent!
-                    return
-                } 
-                console.log("nothing found???")
-            })
+            let selGreen  = `.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.pgbg`
+            let selYellow = `.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.pybg`
+            let selRed    = `.para-m-t.uc-table.table-no-border > thead > tr > td:nth-child(${i+3}) .mcs-caption.prbg`
+            n.exists(`${selGreen}, ${selYellow}, ${selRed}`)
+                .then((exists: boolean) => {
+                    console.log("averages", exists)
+
+                    if(exists){
+                        this.averages[i] = body.querySelector(`${selGreen}, ${selYellow}, ${selRed}`)!.textContent!
+                    }
+                })
         }
     }
 
