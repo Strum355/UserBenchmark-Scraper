@@ -4,8 +4,7 @@ services:
     image: alpeware/chrome-headless-trunk
     ports: 
       - "9222:9222"
-    restart-policy: 
-      condition: always
+    restart: on_failure
     volumes:
       - /tmp/chromedata:/data
     container_name: chrome
