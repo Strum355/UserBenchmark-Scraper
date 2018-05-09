@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -7,12 +7,12 @@ import (
 	"os"
 )
 
-type config struct {
+type Config struct {
 	User string `json:"user"`
 	Pass string `json:"pass"`
 }
 
-func (c *config) loadConfig() {
+func (c *Config) LoadConfig() {
 	b, err := ioutil.ReadFile("config.json")
 	if err != nil {
 		fmt.Println(err)

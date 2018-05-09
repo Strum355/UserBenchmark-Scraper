@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
 	"sync"
-
-	"github.com/chromedp/chromedp"
 )
 
 type (
 	Component interface {
-		Get(context.Context, *chromedp.CDP, string) (Component, error)
+		//Get(context.Context, *chromedp.CDP, string) (Component, error)
 		GetURL() string
 	}
 
