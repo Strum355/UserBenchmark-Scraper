@@ -7,11 +7,14 @@ import (
 	"os"
 )
 
+// Config contains the username and password for logging in
+// to userbenchmark
 type Config struct {
 	User string `json:"user"`
 	Pass string `json:"pass"`
 }
 
+// LoadConfig loads the config : )
 func (c *Config) LoadConfig() {
 	b, err := ioutil.ReadFile("config.json")
 	if err != nil {

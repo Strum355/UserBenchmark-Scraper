@@ -13,6 +13,7 @@ import (
 	"github.com/mafredri/cdp/rpcc"
 )
 
+// Start conects to the headless chrome at URL
 func Start(ctx context.Context, URL string) (c *cdp.Client, conn *rpcc.Conn, err error) {
 	devt := devtool.New(URL)
 
@@ -34,19 +35,24 @@ func Start(ctx context.Context, URL string) (c *cdp.Client, conn *rpcc.Conn, err
 	return
 }
 
+// Login simply logs in I guess
 func Login(ctx context.Context, c *cdp.Client, conf *config.Config) (err error) {
 	if err = Navigate(ctx, c, "http://www.userbenchmark.com/page/login"); err != nil {
 		return
 	}
 
-	args := runtime.NewEvaluateArgs(fmt.Sprintf(`document.querySelector('input[name="username"]').value = '%s'`, conf.User))
+	args := runtime.NewEvaluateArgs(
+		fmt.Sprintf(`document.querySelector('input[name="username"]').value = '%s'`, conf.User),
+	)
 	if _, err = c.Runtime.Evaluate(ctx, args); err != nil {
 		return
 	}
 
 	time.Sleep(time.Second * 2)
 
-	args = runtime.NewEvaluateArgs(fmt.Sprintf(`document.querySelector('input[name="password"]').value = '%s'`, conf.Pass))
+	args = runtime.NewEvaluateArgs(
+		fmt.Sprintf(`document.querySelector('input[name="password"]').value = '%s'`, conf.Pass),
+	)
 	if _, err = c.Runtime.Evaluate(ctx, args); err != nil {
 		return
 	}
@@ -57,6 +63,8 @@ func Login(ctx context.Context, c *cdp.Client, conf *config.Config) (err error) 
 	if _, err = c.Runtime.Evaluate(ctx, args); err != nil {
 		return
 	}
+
+	time.Sleep(time.Second * 2)
 
 	return
 }
